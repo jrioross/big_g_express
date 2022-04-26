@@ -100,9 +100,9 @@ def plotly_roc(y_true, y_pred_probs):
         x=fpr, 
         y=tpr,
         hover_data=[thresholds],
-        title=f'ROC Curve (AUC={auc(fpr, tpr):.4f})',
-        labels=dict(x='False Positive Rate', 
-                    y='True Positive Rate',
+        title=f'<b>ROC Curve (AUC={auc(fpr, tpr):.3f}<b>)',
+        labels=dict(x='<b>False Positive Rate<b>', 
+                    y='<b>True Positive Rate<b>',
                     hover_data_0 = 'Threshold'),
         width=700, 
         height=500
@@ -116,6 +116,26 @@ def plotly_roc(y_true, y_pred_probs):
     fig.update_yaxes(scaleanchor="x", scaleratio=1)
     fig.update_xaxes(constrain='domain')
     return fig
+
+def create_cost_savings(y_true, y_probs, type):
+
+    if type == 'savings':
+        scorer = savings_scorer
+    elif type == 'costs':
+        scorer = cost_scorer
+
+    threshold_range = np.concatenate([np.arange(0.001, 0.01, 0.001), np.arange(0.01, 0.1, 0.01), np.arange(0.1, 1, 0.1), np.arange(0.9, 1, 0.01), np.arange(0.99, 0.9985, 0.001), np.arange(0.999, 1.0001, 0.0001)])
+    
+    dict = {t: {f'total_{type}': scorer(y_true, [p[1] > t for p in y_probs]), 'f1_score': f1_score(y_true, [p[1] > t for p in y_probs]), 'precision': precision_score(y_true, [p[1] > t for p in y_probs]), 'recall': recall_score(y_true, [p[1] > t for p in y_probs])} for t in threshold_range}
+    df = (pd.concat({k: pd.DataFrame.from_dict(v, orient='index') for k, v in dict.items()}, axis=0)
+                            .unstack(level = 1)
+        )
+    df.index = df.index.rename('threshold')
+    df.columns = df.columns.droplevel(level=0)
+    df = df.reset_index()
+
+    return df
+
 
 def plot_costs_by_threshold(costs_df, multiwindow = False):
     """
